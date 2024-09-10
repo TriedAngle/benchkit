@@ -1,0 +1,3 @@
+[submodule "examples/ipc/ipc-channel"]
+	path = examples/ipc/ipc-channel
+	url = https://github.com/servo/ipc-channel.git
