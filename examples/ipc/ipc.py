@@ -18,6 +18,7 @@ class ForgetFullException(Exception):
 
 
 MOBILE = False
+SKIP_REBUILD = True
 
 BUILD_VARIABLES = []
 RUN_VARIABLES = []
@@ -50,7 +51,8 @@ class IPCBenchmark(Benchmark):
 
         if hdc is not None:
             self.hdc = hdc
-        
+    
+
     @property
     def bench_src_path(self) -> pathlib.Path:
         return self.bench_dir
@@ -68,12 +70,12 @@ class IPCBenchmark(Benchmark):
         return TILT_VARIABELS
     
 
-    @staticmethod
-    def _parse_results(
-        output: str,
-        nb_threads: int,
-    ) -> Dict[str, str]:
-        return { "output" : output }
+    # @staticmethod
+    # def _parse_results(
+    #     output: str,
+    #     nb_threads: int,
+    # ) -> Dict[str, str]:
+        # return {}
     
 
     def parse_output_to_results(
@@ -85,33 +87,35 @@ class IPCBenchmark(Benchmark):
         record_data_dir: PathType, 
         **kwargs
     ) -> Dict[str, Any]:
-        return super().parse_output_to_results(command_output, build_variables, run_variables, benchmark_duration_seconds, record_data_dir, **kwargs)
+        return { "please": "fixme" }
     
 
-    def prebuild_bench(self, **kwargs) -> int:
+    def prebuild_bench(self, **kwargs) -> None:
         if not MOBILE:
-            return super().prebuild_bench(**kwargs)
+            return
         self.hdc
 
     def build_bench(self, **kwargs) -> None:
         if MOBILE:
-            return super().build_bench(**kwargs)
+            return
         
-        self.platform.comm.shell(
-            command="cargo build",
-            current_dir=self.bench_dir
-        )
+        if not SKIP_REBUILD:
+            self.platform.comm.shell(
+                command="cargo build",
+                current_dir=self.bench_dir
+            )
     
     def clean_bench(self) -> None:
         if MOBILE:
-            return super().clean_bench()
+            return
 
-        self.platform.comm.shell(
-            command="cargo clean",
-            current_dir=self.bench_dir
-        )
+        if not SKIP_REBUILD:
+            self.platform.comm.shell(
+                command="cargo clean",
+                current_dir=self.bench_dir
+            )
     
-    def single_run(self, **kwargs) -> str | AsyncProcess:
+    def single_run(self, **kwargs) -> str:
         run_command: List[str]
         if MOBILE:
             run_command = [
@@ -134,14 +138,14 @@ class IPCBenchmark(Benchmark):
             wrapped_run_command=wrapped_run_command,
             current_dir=self.bench_dir,
             wrapped_environment=wrapped_environment,
-            print_output=True,
+            print_output=False,
         )
 
         return output    
 
 
 def main() -> None:
-    nb_runs = 5,
+    nb_runs = 5
 
     bench_dir: str = "./examples/ipc/ipc_runner"
     if MOBILE:
@@ -181,12 +185,12 @@ def main() -> None:
         gdb=False,
         debug=False,
         constants=None,
-        enable_data_dir=False,
+        enable_data_dir=True,
     )
 
     campaigns: List[Campaign] = [campaign]
     suite = CampaignSuite(campaigns=campaigns)
-    suite.print_durations()
+    # suite.print_durations()
     suite.run_suite()
 
 
