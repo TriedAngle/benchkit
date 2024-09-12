@@ -96,7 +96,7 @@ class OpenHarmonyDeviceConnector:
     
     
     @staticmethod
-    def query_devices(filter: Callable[[HDCDevice], bool]) -> Iterable[HDCDevice]:
+    def query_devices(filter: Callable[[HDCDevice], bool] = lambda _: True) -> Iterable[HDCDevice]:
         """Get filtered list of devices recognized by hdc.
 
         Returns:

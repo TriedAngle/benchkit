@@ -1,8 +1,8 @@
 import pathlib
 import os
-from typing import Optional, Iterable, List, Dict
+from typing import Any, Optional, Iterable, List, Dict
 
-from benchkit.benchkit.shell.shellasync import AsyncProcess
+from benchkit.shell.shellasync import AsyncProcess
 from benchkit.benchmark import Benchmark, CommandAttachment, PostRunHook, PreRunHook, RecordResult
 from benchkit.campaign import CampaignSuite, CampaignCartesianProduct, Campaign
 from benchkit.commandwrappers import CommandWrapper
@@ -10,14 +10,19 @@ from benchkit.commandwrappers.perf import PerfReportWrap, PerfStatWrap, enable_n
 from benchkit.platforms import Platform, get_current_platform
 from benchkit.sharedlibs import SharedLib
 from benchkit.utils.types import PathType
+from benchkit.hdc import OpenHarmonyDeviceConnector
 
 
 class ForgetFullException(Exception):
     pass
 
+
+MOBILE = False
+
 BUILD_VARIABLES = []
 RUN_VARIABLES = []
 TILT_VARIABELS = []
+
 
 class IPCBenchmark(Benchmark):
     def __init__(
@@ -29,6 +34,7 @@ class IPCBenchmark(Benchmark):
         pre_run_hooks: Iterable[PreRunHook] = [],
         post_run_hooks: Iterable[PostRunHook] = [],
         platform: Platform | None = None,
+        hdc: OpenHarmonyDeviceConnector | None = None,
     ) -> None:
         super().__init__(
             command_wrappers=command_wrappers,
@@ -41,6 +47,9 @@ class IPCBenchmark(Benchmark):
         
         if platform is not None:
             self.platform = platform
+
+        if hdc is not None:
+            self.hdc = hdc
         
     @property
     def bench_src_path(self) -> pathlib.Path:
@@ -64,41 +73,89 @@ class IPCBenchmark(Benchmark):
         output: str,
         nb_threads: int,
     ) -> Dict[str, str]:
-        return {}
+        return { "output" : output }
     
 
     def parse_output_to_results(
         self, 
         command_output: str, 
-        build_variables: Dict[str, pathlib.Any], 
-        run_variables: Dict[str, pathlib.Any], 
+        build_variables: Dict[str, Any], 
+        run_variables: Dict[str, Any], 
         benchmark_duration_seconds: int, 
-        record_data_dir: pathlib.Path | pathlib.PathLike | str, 
+        record_data_dir: PathType, 
         **kwargs
-    ) -> Dict[str, pathlib.Any]:
+    ) -> Dict[str, Any]:
         return super().parse_output_to_results(command_output, build_variables, run_variables, benchmark_duration_seconds, record_data_dir, **kwargs)
     
 
     def prebuild_bench(self, **kwargs) -> int:
-        return super().prebuild_bench(**kwargs)
-    
+        if not MOBILE:
+            return super().prebuild_bench(**kwargs)
+        self.hdc
+
     def build_bench(self, **kwargs) -> None:
-        return super().build_bench(**kwargs)
+        if MOBILE:
+            return super().build_bench(**kwargs)
+        
+        self.platform.comm.shell(
+            command="cargo build",
+            current_dir=self.bench_dir
+        )
     
     def clean_bench(self) -> None:
-        return super().clean_bench()
+        if MOBILE:
+            return super().clean_bench()
+
+        self.platform.comm.shell(
+            command="cargo clean",
+            current_dir=self.bench_dir
+        )
     
     def single_run(self, **kwargs) -> str | AsyncProcess:
-        return super().single_run(**kwargs)
-    
+        run_command: List[str]
+        if MOBILE:
+            run_command = [
+                "./ipc_runner"
+            ]
+        else:
+            run_command = [
+                "cargo", "run", "--"
+            ]
+
+        wrapped_run_command, wrapped_environment = self._wrap_command(
+            run_command=run_command,
+            environment={},
+            **kwargs,
+        )
+
+        output = self.run_bench_command(
+            environment={},
+            run_command=run_command,
+            wrapped_run_command=wrapped_run_command,
+            current_dir=self.bench_dir,
+            wrapped_environment=wrapped_environment,
+            print_output=True,
+        )
+
+        return output    
 
 
 def main() -> None:
-    bench_dir = "ipc-channel"
     nb_runs = 5,
-    platform = get_current_platform()
 
-    enable_non_sudo_perf(platform.comm)
+    bench_dir: str = "./examples/ipc/ipc_runner"
+    if MOBILE:
+        bench_dir = "/data/testing/ipc/"
+   
+    platform: Platform = None
+    if not MOBILE:
+        platform = get_current_platform()
+        enable_non_sudo_perf(platform.comm)
+
+    hdc: OpenHarmonyDeviceConnector | None = None
+    if MOBILE:
+        devices = OpenHarmonyDeviceConnector.query_devices()
+        hdc = OpenHarmonyDeviceConnector(devices[0])
 
     variables = {
 
@@ -113,6 +170,7 @@ def main() -> None:
     benchmark = IPCBenchmark(
         bench_dir=bench_dir,
         platform=platform,
+        hdc=hdc,
     )
 
     campaign = CampaignCartesianProduct(
