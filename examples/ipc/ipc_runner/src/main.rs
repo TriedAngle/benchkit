@@ -10,8 +10,6 @@ struct Config {
     messages: usize,
     #[arg(short, long, default_value_t = false)]
     debug: bool,
-    #[arg(short, long, default_value_t = false)]
-    track: bool,
 }
 
 // run child process that does nothing but retuning what it received
@@ -41,7 +39,6 @@ pub fn main() -> Result<(), String> {
     let Config {
         messages,
         debug,
-        track,
     } = Config::parse();
     let expected = messages;
 
@@ -71,9 +68,7 @@ pub fn main() -> Result<(), String> {
     assert_eq!(expected, total, "Sums don't match");
 
     println!("Successfully roundtrip {}", messages);
-    if track {
-        println!("took: {:.3}s", end_time.as_millis() as f32 / 1000 as f32)
-    }
+    println!("took: {:.3}s", end_time.as_millis() as f32 / 1000 as f32);
 
     Ok(())
 }
