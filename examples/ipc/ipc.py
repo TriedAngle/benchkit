@@ -168,7 +168,7 @@ def main() -> None:
         hdc = OpenHarmonyDeviceConnector(devices[0])
     else:
         platform = get_current_platform()
-
+    
     benchmark = IPCBenchmark(
         bench_dir=bench_dir,
         platform=platform,
@@ -176,7 +176,7 @@ def main() -> None:
         mobile=mobile,
         skip_rebuild=skip_rebuild,
     )
-    print("--- SAD EMOJI ---")
+
     campaign = CampaignIterateVariables(
         name="IPC Benching",
         benchmark=benchmark,
@@ -187,13 +187,10 @@ def main() -> None:
         constants=None,
         enable_data_dir=True,
     )
-    print("--- SAD EMOJI ---")
 
     campaigns: List[Campaign] = [campaign]
     suite = CampaignSuite(campaigns=campaigns)
     suite.print_durations()
-    print("--- SAD EMOJI ---")
-
     suite.run_suite()
 
 
