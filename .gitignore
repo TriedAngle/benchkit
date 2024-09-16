@@ -2,5 +2,5 @@ __pycache__/
 venv/
 .venv/
 .idea/
-benchkit.egg-info/
 results/
+benchkit.egg-info/
